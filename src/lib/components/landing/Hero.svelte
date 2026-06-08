@@ -1,7 +1,50 @@
 <script lang="ts">
 	import WordProcessor from './WordProcessor.svelte';
 	import AnimatedShaderBackground from '$lib/components/ui/animated-shader-background.svelte';
+	import { onMount } from 'svelte';
+
 	let { user }: { user: import('better-auth/types').User | null } = $props();
+
+	let targetX = $state(0);
+	let targetY = $state(0);
+	let currentX = $state(0);
+	let currentY = $state(0);
+	let isTouch = $state(false);
+
+	const meteorPositions = [
+		{ top: '15%', left: '20%' },
+		{ top: '35%', left: '85%' },
+		{ top: '55%', left: '15%' },
+		{ top: '75%', left: '80%' },
+		{ top: '25%', left: '60%' },
+		{ top: '85%', left: '30%' },
+	];
+
+	onMount(() => {
+		isTouch = window.matchMedia('(pointer: coarse)').matches;
+		if (isTouch) return;
+
+		const handleMouseMove = (e: MouseEvent) => {
+			const maxOffset = 30;
+			targetX = ((e.clientX / window.innerWidth) - 0.5) * 2 * maxOffset;
+			targetY = ((e.clientY / window.innerHeight) - 0.5) * 2 * maxOffset;
+		};
+
+		window.addEventListener('mousemove', handleMouseMove);
+
+		let animationFrameId: number;
+		const animate = () => {
+			currentX += (targetX - currentX) * 0.05;
+			currentY += (targetY - currentY) * 0.05;
+			animationFrameId = requestAnimationFrame(animate);
+		};
+		animate();
+
+		return () => {
+			window.removeEventListener('mousemove', handleMouseMove);
+			cancelAnimationFrame(animationFrameId);
+		};
+	});
 
 	let outerRef: HTMLDivElement;
 	let winRef: HTMLDivElement;
@@ -149,6 +192,15 @@
 </script>
 
 <section class="relative isolate overflow-hidden pt-32 pb-24">
+	<div class="pointer-events-none absolute inset-0 z-0" style="transform: translate({currentX}px, {currentY}px);">
+		{#each Array(6) as _, i}
+			<div
+				class="meteor-streak"
+				style="opacity: {0.6 - i * 0.08}; top: {meteorPositions[i].top}; left: {meteorPositions[i].left};"
+			></div>
+		{/each}
+	</div>
+
 	<div class="pointer-events-none absolute inset-0 z-0">
 		<div
 			class="absolute inset-0 bg-[radial-gradient(ellipse_at_top,rgba(255,255,255,0.08),transparent_60%)]"
@@ -650,3 +702,16 @@
 			</div>
 		</div>
 </section>
+
+<style>
+	.meteor-streak {
+		position: absolute;
+		pointer-events: none;
+		width: 150px;
+		height: 1.5px;
+		background: linear-gradient(90deg, rgba(147,130,255,0.8), transparent);
+		border-radius: 999px;
+		transform: rotate(-45deg);
+		z-index: 0;
+	}
+</style>
